@@ -80,6 +80,7 @@
   - 自动签到工作流，每天 16:00 (UTC) 定时执行
   - 支持手动触发和通过 `workflow_call` 被其他工作流调用
   - 结束时向 Uptime Kuma 上报执行结果：成功为 `up`，失败为 `down`；未配置 `KUMA_PUSH_URL` 时上报步骤会失败
+  - 上报仅在 HTTP 200 且 JSON 响应的 `ok` 为 `true` 时成功；重定向、登录页面和拒绝响应均会使步骤失败。Push URL 应使用可直接访问 Kuma API 的 HTTPS 地址
   - 在 Kuma 创建 Push 监控，建议心跳间隔为 93600 秒（26 小时）、重试次数为 0；任务未运行或无法上报时由心跳超时报警
   - 通过 `workflow_call` 调用时，需要传入 `KUMA_PUSH_URL` Secret
   - 上报的是工作流执行结果；未配置签到账号时，当前签到任务仍返回成功

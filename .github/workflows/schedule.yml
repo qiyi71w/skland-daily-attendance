@@ -72,9 +72,37 @@ jobs:
             status="down"
           fi
 
-          curl --fail --silent --show-error \
+          response=$(mktemp)
+          headers=$(mktemp)
+          trap 'rm -f "$response" "$headers"' EXIT
+
+          code=$(curl --silent --show-error \
             --connect-timeout 10 \
             --max-time 30 \
+            --dump-header "$headers" \
+            --output "$response" \
+            --write-out '%{http_code}' \
             --get "${KUMA_PUSH_URL%%\?*}" \
             --data-urlencode "status=$status" \
-            --data-urlencode "msg=attendance: $JOB_STATUS"
+            --data-urlencode "msg=attendance: $JOB_STATUS")
+
+          if [ "$code" != "200" ]; then
+            python3 - "$headers" "$code" <<'PY'
+          import os, sys
+          from urllib.parse import urljoin, urlsplit
+          source = urlsplit(os.environ['KUMA_PUSH_URL'])
+          print(f"::error::Kuma returned HTTP {sys.argv[2]}; source host: {source.hostname}")
+          with open(sys.argv[1]) as headers:
+              for line in headers:
+                  if line.lower().startswith('location:'):
+                      target = urlsplit(urljoin(os.environ['KUMA_PUSH_URL'], line.split(':', 1)[1].strip()))
+                      print(f"Redirect target host: {target.hostname}; scheme: {target.scheme}")
+          PY
+            exit 1
+          fi
+
+          if ! jq -e 'type == "object" and .ok == true' "$response" >/dev/null 2>&1; then
+            echo '::error::Kuma did not acknowledge the heartbeat with {"ok":true}'
+            exit 1
+          fi
+          echo 'Kuma acknowledged heartbeat: {"ok":true}'
