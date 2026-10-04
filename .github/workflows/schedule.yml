@@ -14,6 +14,8 @@ on:
         required: false
       MAX_RETRIES:
         required: false
+      KUMA_PUSH_URL:
+        required: true
     inputs:
       repository:
         description: The repository to run the workflow on
@@ -52,3 +54,27 @@ jobs:
           SKLAND_NOTIFICATION_URLS: ${{ secrets.SKLAND_NOTIFICATION_URLS }}
           SKLAND_MAX_RETRIES: ${{ secrets.MAX_RETRIES }}
           SKLAND_ANONYMOUS: ${{ secrets.SKLAND_ANONYMOUS }}
+
+      - name: Report result to Uptime Kuma
+        if: ${{ always() }}
+        env:
+          KUMA_PUSH_URL: ${{ secrets.KUMA_PUSH_URL }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ -z "$KUMA_PUSH_URL" ]; then
+            echo "::error::KUMA_PUSH_URL is not configured"
+            exit 1
+          fi
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            status="up"
+          else
+            status="down"
+          fi
+
+          curl --fail --silent --show-error \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --get "${KUMA_PUSH_URL%%\?*}" \
+            --data-urlencode "status=$status" \
+            --data-urlencode "msg=attendance: $JOB_STATUS"

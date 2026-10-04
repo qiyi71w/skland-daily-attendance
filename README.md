@@ -46,6 +46,7 @@
    | `SKLAND_NOTIFICATION_URLS` | 通知 URL，多个 URL 用逗号分隔 | 可选 |
    | `SKLAND_MAX_RETRIES` | 最大重试次数，默认为 3 | 可选 |
    | `SKLAND_ANONYMOUS` | 隐藏角色名，设置任意值即可开启（推荐使用 `true` 或 `1`），默认关闭 | 可选 |
+   | `KUMA_PUSH_URL` | Uptime Kuma 生成的完整 Push URL，包含监控密钥，请勿公开 | GitHub Actions 必填 |
 
    <details>
    <summary>关于 SKLAND_ANONYMOUS 配置</summary>
@@ -78,6 +79,10 @@
 - **attendance** (`.github/workflows/schedule.yml`)
   - 自动签到工作流，每天 16:00 (UTC) 定时执行
   - 支持手动触发和通过 `workflow_call` 被其他工作流调用
+  - 结束时向 Uptime Kuma 上报执行结果：成功为 `up`，失败为 `down`；未配置 `KUMA_PUSH_URL` 时上报步骤会失败
+  - 在 Kuma 创建 Push 监控，建议心跳间隔为 93600 秒（26 小时）、重试次数为 0；任务未运行或无法上报时由心跳超时报警
+  - 通过 `workflow_call` 调用时，需要传入 `KUMA_PUSH_URL` Secret
+  - 上报的是工作流执行结果；未配置签到账号时，当前签到任务仍返回成功
 
 - **自动 push 防止 Actions 自动停止** (`.github/workflows/auto_push.yml`)
   - 保活工作流，每月 1 号和 15 号自动创建空提交并推送
